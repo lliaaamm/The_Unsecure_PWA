@@ -14,7 +14,7 @@ app = Flask(__name__)
 def addFeedback():
     if request.method == "GET" and request.args.get("url"):
         url = request.args.get("url", "")
-        return redirect(url, code=302)
+        return checkurl(url)
     if request.method == "POST":
         feedback = request.form["feedback"]
         dbHandler.insertFeedback(feedback)
@@ -29,7 +29,7 @@ def addFeedback():
 def signup():
     if request.method == "GET" and request.args.get("url"):
         url = request.args.get("url", "")
-        return redirect(url, code=302)
+        return checkurl(url)
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
@@ -45,7 +45,7 @@ def signup():
 def home():
     if request.method == "GET" and request.args.get("url"):
         url = request.args.get("url", "")
-        return redirect(url, code=302)
+        return checkurl(url)
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
@@ -58,6 +58,11 @@ def home():
     else:
         return render_template("/index.html")
 
+def checkurl(url):
+    if url.startswith("/"):
+        return redirect(url, code=302)
+    else:
+        return abort(500)
 
 if __name__ == "__main__":
     app.config["TEMPLATES_AUTO_RELOAD"] = True
