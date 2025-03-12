@@ -2,6 +2,7 @@ from flask import Flask
 from flask import render_template
 from flask import request
 from flask import redirect
+from flask import url_for
 import user_management as dbHandler
 
 # Code snippet for logging a message
@@ -58,11 +59,15 @@ def home():
     else:
         return render_template("/index.html")
 
+ALLOWED_PATHS = {"/index.html", "/signup.html", "/success.html"}
+
 def checkurl(url):
-    if url.startswith("/"):
+    # Ensure it's a valid path (prevent open redirects)
+    if url in ALLOWED_PATHS:
         return redirect(url, code=302)
-    else:
-        return abort(500)
+
+    # Redirect to home if URL is invalid
+    return redirect(url_for("home"))
 
 if __name__ == "__main__":
     app.config["TEMPLATES_AUTO_RELOAD"] = True
