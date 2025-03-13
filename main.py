@@ -5,11 +5,13 @@ from flask import redirect
 from flask import url_for
 import user_management as dbHandler
 
-# Code snippet for logging a message
-# app.logger.critical("message")
-
 app = Flask(__name__)
 
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'  # Protects against clickjacking
+    response.headers['Content-Security-Policy'] = "frame-ancestors 'self';"  # CSP clickjacking protection
+    return response
 
 @app.route("/success.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
 def addFeedback():
@@ -24,7 +26,6 @@ def addFeedback():
     else:
         dbHandler.listFeedback()
         return render_template("/success.html", state=True, value="Back")
-
 
 @app.route("/signup.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
 def signup():
@@ -65,9 +66,61 @@ def checkurl(url):
     # Ensure it's a valid path (prevent open redirects)
     if url in ALLOWED_PATHS:
         return redirect(url, code=302)
-
     # Redirect to home if URL is invalid
     return redirect(url_for("home"))
+
+@app.route("/enable_2fa", methods=["GET", "POST"])
+
+def enable_2fa():
+    """
+    Enable Two-Factor Authentication (2FA) for users with debug logs to troubleshoot QR code issues.
+    """
+    if session.get('2fa_verified'):
+        return redirect(url_for('addFeedback'))
+
+    otp_secret = session.get('user_secret')
+    if not otp_secret:
+        app.logger.error("2FA secret not found in session. Redirecting to home.")
+        return redirect(url_for('home'))
+
+    try:
+        # Generate TOTP provisioning URI
+        totp = pyotp.TOTP(otp_secret)
+        provisioning_uri = totp.provisioning_uri(name=session.get('username'), issuer_name="SecureApp")
+
+        # Create QR code
+        qr_code = pyqrcode.create(provisioning_uri)
+        qr_buffer = BytesIO()
+        qr_code.svg(qr_buffer, scale=5)
+        qr_code_b64 = base64.b64encode(qr_buffer.getvalue()).decode()
+
+        # Store QR code in session for reuse
+        session['qr_code'] = qr_code_b64
+    except Exception as e:
+        app.logger.exception(f"Error while generating QR code: {e}")
+        return jsonify({'error': 'An error occurred while generating the QR code. Please try again later.'}), 500
+
+    return render_template("2fa.html", qr_code=qr_code_b64)
+
+
+@app.route("/verify_2fa", methods=["POST", "GET"])
+def verify_2fa():
+    """
+    Verify the submitted OTP for 2FA.
+    """
+    if request.method == "POST":
+        otp_secret = session.get('user_secret', "")
+        user_otp = request.form.get("otp", "")
+
+        totp = pyotp.TOTP(otp_secret)
+        if totp.verify(user_otp):
+            session['2fa_verified'] = True
+            return render_template("success.html", state=True, value="Back")
+
+        qr_code = session.get('qr_code', "")
+        return render_template("2fa.html", qr_code=qr_code, error="Invalid OTP. Try Again.")
+
+    return redirect(url_for('enable_2fa'))
 
 if __name__ == "__main__":
     app.config["TEMPLATES_AUTO_RELOAD"] = True
