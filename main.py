@@ -3,35 +3,15 @@ from flask import render_template
 from flask import request
 from flask import redirect
 from flask import url_for
-from flask import session
 import user_management as dbHandler
-import pyqrcode
-import pyotp
-import os
-import base64
-from io import BytesIO
-
 
 app = Flask(__name__)
-app.secret_key = 'my_secret_key'
 
 @app.after_request
 def add_security_headers(response):
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'  # Protects against clickjacking
-    response.headers['Content-Security-Policy'] = (
-        "frame-ancestors 'self'; "
-        "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://trusted-scripts.example.com; "
-        "style-src 'self' 'unsafe-inline'; "
-        "img-src 'self' data: https://trusted-images.example.com; "
-        "connect-src 'self' https://api.example.com"
-    )  # CSP rules
-
+    response.headers['Content-Security-Policy'] = "frame-ancestors 'self';"  # CSP clickjacking protection
     return response
-
-
-    return response
-
 
 @app.route("/success.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
 def addFeedback():
@@ -65,22 +45,22 @@ def signup():
 @app.route("/index.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
 @app.route("/", methods=["POST", "GET"])
 def home():
- #   if request.method == "GET" and request.args.get("url"):
-  #      url = request.args.get("url", "")
-   #     return checkurl(url)
+    if request.method == "GET" and request.args.get("url"):
+        url = request.args.get("url", "")
+        return checkurl(url)
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
         isLoggedIn = dbHandler.retrieveUsers(username, password)
         if isLoggedIn:
             dbHandler.listFeedback()
-            return render_template("/2fa.html", value=username, state=isLoggedIn)
+            return render_template("/success.html", value=username, state=isLoggedIn)
         else:
             return render_template("/index.html")
     else:
         return render_template("/index.html")
 
-ALLOWED_PATHS = {"/index.html", "/signup.html", "/success.html", "/2fa.html"}
+ALLOWED_PATHS = {"/index.html", "/signup.html", "/success.html"}
 
 def checkurl(url):
     # Ensure it's a valid path (prevent open redirects)

@@ -5,12 +5,12 @@
 <div class="box">
     <!-- Embed the Base64-encoded SVG -->
     <div class="qr-code__wrapper">
-        <img src="data:image/png;base64,{{ qr_code }}" alt="Scan this QR code to configure 2FA">
+        <img src="data:image/svg+xml;base64,{{ qr_code }}" alt="Scan this QR code to configure 2FA">
     </div>
 
     <form method="post" action="/verify_2fa" class="form">
         <div class="input__wrapper" style="margin-top: 20px;">
-            <label for="otp" class="input__label">Enter OTP:</label><br>
+            <label for="otp" class="input__label">Enter OTP:</label>
 
             <input type="text" id="otp" name="otp" placeholder="Enter OTP" class="input__field" style="margin-top: 15px;" required>
         </div>
