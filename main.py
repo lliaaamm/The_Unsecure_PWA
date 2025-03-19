@@ -3,14 +3,25 @@ from flask import render_template
 from flask import request
 from flask import redirect
 from flask import url_for
+from flask import session
+from flask_session import Session
+import pyotp
 import user_management as dbHandler
+import qrcode
+from flask import flash
+import logging
 
 app = Flask(__name__)
+app.secret_key='aaabbbddss'
+app.config["SESSION_PERMAMENT"] = False
+app.config["SESSION_TYPE"] = "filesystem"
+Session(app)
 
 @app.after_request
 def add_security_headers(response):
-    response.headers['X-Frame-Options'] = 'SAMEORIGIN'  # Protects against clickjacking
-    response.headers['Content-Security-Policy'] = "frame-ancestors 'self';"  # CSP clickjacking protection
+    response.headers['X-Frame-Options'] = 'DENY'  # Protects against clickjacking
+    response.headers['Content-Security-Policy'] = "nosniff"  # CSP clickjacking protection
+    response.headers["X-XSS-Protection"] = "1; mode=block"
     return response
 
 @app.route("/success.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
@@ -51,16 +62,22 @@ def home():
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
-        isLoggedIn = dbHandler.retrieveUsers(username, password)
-        if isLoggedIn:
-            dbHandler.listFeedback()
-            return render_template("/success.html", value=username, state=isLoggedIn)
+        user = dbHandler.retrieveUsers(username, password)
+        if user:
+            print('hi liam')
+            session['username'] = username
+            session['two_factor_key'] = user[4]
+            key = session.get('two_factor_key')
+            print('hello')
+            uri = pyotp.totp.TOTP(key).provisioning_uri(name=session.get('username'), issuer_name='2fa App')
+            qrcode.make(uri).save("static/newCode.png")
+            return render_template("/2fa.html")
         else:
             return render_template("/index.html")
     else:
         return render_template("/index.html")
 
-ALLOWED_PATHS = {"/index.html", "/signup.html", "/success.html"}
+ALLOWED_PATHS = {"/index.html", "/signup.html", "/success.html", "/2fa.html"}
 
 def checkurl(url):
     # Ensure it's a valid path (prevent open redirects)
@@ -69,58 +86,26 @@ def checkurl(url):
     # Redirect to home if URL is invalid
     return redirect(url_for("home"))
 
-@app.route("/enable_2fa", methods=["GET", "POST"])
-
-def enable_2fa():
-    """
-    Enable Two-Factor Authentication (2FA) for users with debug logs to troubleshoot QR code issues.
-    """
-    if session.get('2fa_verified'):
-        return redirect(url_for('addFeedback'))
-
-    otp_secret = session.get('user_secret')
-    if not otp_secret:
-        app.logger.error("2FA secret not found in session. Redirecting to home.")
-        return redirect(url_for('home'))
-
-    try:
-        # Generate TOTP provisioning URI
-        totp = pyotp.TOTP(otp_secret)
-        provisioning_uri = totp.provisioning_uri(name=session.get('username'), issuer_name="SecureApp")
-
-        # Create QR code
-        qr_code = pyqrcode.create(provisioning_uri)
-        qr_buffer = BytesIO()
-        qr_code.svg(qr_buffer, scale=5)
-        qr_code_b64 = base64.b64encode(qr_buffer.getvalue()).decode()
-
-        # Store QR code in session for reuse
-        session['qr_code'] = qr_code_b64
-    except Exception as e:
-        app.logger.exception(f"Error while generating QR code: {e}")
-        return jsonify({'error': 'An error occurred while generating the QR code. Please try again later.'}), 500
-
-    return render_template("2fa.html", qr_code=qr_code_b64)
-
-
-@app.route("/verify_2fa", methods=["POST", "GET"])
-def verify_2fa():
-    """
-    Verify the submitted OTP for 2FA.
-    """
+@app.route("/2fa.html", methods=["POST", "GET"])
+def two_factor():
+    print('Hi drew')
     if request.method == "POST":
-        otp_secret = session.get('user_secret', "")
-        user_otp = request.form.get("otp", "")
+            code = request.form["code"]
+            key = session.get('two_factor_key')
+            print(key)
+            if key is None:
+                return render_template("/2fa.html", error="No Key!")
+            if pyotp.TOTP(key).verify(code):
+                return render_template("/success.html", value=session.get('username'), state=True)
+            else:
+                return render_template("/2fa.html", error="Invalid Code")
+    else:
+        key = session.get('two_factor_key')
+        print('hello')
+        uri = pyotp.totp.TOTP(key).provisioning_uri(name=session.get('username'), issuer_name='2fa App')
+        qrcode.make(uri).save("static/newCode.png")
+        return render_template("/2fa.html")
 
-        totp = pyotp.TOTP(otp_secret)
-        if totp.verify(user_otp):
-            session['2fa_verified'] = True
-            return render_template("success.html", state=True, value="Back")
-
-        qr_code = session.get('qr_code', "")
-        return render_template("2fa.html", qr_code=qr_code, error="Invalid OTP. Try Again.")
-
-    return redirect(url_for('enable_2fa'))
 
 if __name__ == "__main__":
     app.config["TEMPLATES_AUTO_RELOAD"] = True

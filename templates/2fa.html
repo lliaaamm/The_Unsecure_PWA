@@ -1,22 +1,21 @@
-{% extends 'layout.html' %}
-
-{% block content %}
+{% extends 'layout.html' %} {% block content %}
 <h1>Enable 2FA</h1>
-<div class="box">
-    <!-- Embed the Base64-encoded SVG -->
-    <div class="qr-code__wrapper">
-        <img src="data:image/svg+xml;base64,{{ qr_code }}" alt="Scan this QR code to configure 2FA">
+{% if error %}
+<p>{{ error }}</p>
+{% endif %}
+<img src="/static/newCode.png" alt="Scan this QR code with your 2FA app"/>
+<form action="/2fa.html" method="POST" class="box">
+    <div class="input__wrapper">
+        <input
+            type="text"
+            name="code"
+            placeholder="Enter 2FA code"
+            class="input__field"
+            required
+        />
     </div>
-
-    <form method="post" action="/verify_2fa" class="form">
-        <div class="input__wrapper" style="margin-top: 20px;">
-            <label for="otp" class="input__label">Enter OTP:</label>
-
-            <input type="text" id="otp" name="otp" placeholder="Enter OTP" class="input__field" style="margin-top: 15px;" required>
-        </div>
-        <div class="input__wrapper">
-            <button type="submit" class="btn">Verify</button>
-        </div>
-    </form>
-</div>
+    <div class="input__wrapper">
+        <button type="submit" class="btn">Verify</button>
+    </div>
+</form>
 {% endblock %}

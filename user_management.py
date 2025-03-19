@@ -14,7 +14,7 @@ def insertUser(username, password, DoB):
 
     # Use double quotes for "2FA_Key" due to special characters
     cur.execute(
-        'INSERT INTO users (username, password, dateOfBirth, "2FA_Key") VALUES (?, ?, ?, ?)',
+        'INSERT INTO users (username, password, dateOfBirth, "two_factor_key") VALUES (?, ?, ?, ?)',
         (username, password, DoB, key),
     )
     con.commit()
@@ -36,39 +36,16 @@ def retrieveUsers(username, password, otp=None):
     if user is None:  # Username or password mismatch
         con.close()
         return False, None
-
-    # Fetch the user's 2FA key from the record
-    twoFA_Key = user[-1]  # Assuming "2FA_Key" is the last column in the table
-
-    if otp:
-        # Validate the OTP if provided
-        totp = pyotp.TOTP(twoFA_Key)
-        if not totp.verify(otp):  # OTP is invalid
+    else:
+        cur.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password))
+        user = cur.fetchone()
+        if user is None:
             con.close()
-            return False, None
+            return False
+        else:
+            con.close()
+            return user
 
-    # Increment visitor count
-    _increment_visitor_log()
-
-    con.close()
-    return True, twoFA_Key  # Return login status and 2FA key
-
-
-
-
-def get_2fa_key(username):
-    """
-    Retrieve the 2FA secret key for a specific user.
-    """
-    con = sql.connect("database_files/database.db")
-    cur = con.cursor()
-
-    # Safeguard with parameterized query
-    cur.execute('SELECT "2FA_Key" FROM users WHERE username = ?', (username,))
-    result = cur.fetchone()
-
-    con.close()
-    return result[0] if result else None
 
 
 def _increment_visitor_log():
