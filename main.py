@@ -10,12 +10,14 @@ import user_management as dbHandler
 import qrcode
 from flask import flash
 import logging
+from flask_wtf.csrf import CSRFProtect
 
 app = Flask(__name__)
 app.secret_key='aaabbbddss'
 app.config["SESSION_PERMAMENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
+csrf = CSRFProtect(app)
 
 @app.after_request
 def add_security_headers(response):

@@ -1,17 +1,20 @@
-{% extends 'layout.html' %} {% block content %}
+{% extends 'layout.html' %}
+{% block content %}
 <h1>Enable 2FA</h1>
 {% if error %}
 <p>{{ error }}</p>
 {% endif %}
 <img src="/static/newCode.png" alt="Scan this QR code with your 2FA app"/>
 <form action="/2fa.html" method="POST" class="box">
+    <!-- Include CSRF token -->
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="input__wrapper">
         <input
-            type="text"
-            name="code"
-            placeholder="Enter 2FA code"
-            class="input__field"
-            required
+                type="text"
+                name="code"
+                placeholder="Enter 2FA code"
+                class="input__field"
+                required
         />
     </div>
     <div class="input__wrapper">
