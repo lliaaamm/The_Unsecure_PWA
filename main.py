@@ -10,6 +10,7 @@ import user_management as dbHandler
 import qrcode
 from flask import flash
 import logging
+import bcrypt
 
 app = Flask(__name__)
 app.secret_key='aaabbbddss'
@@ -63,6 +64,7 @@ def home():
         username = request.form["username"]
         password = request.form["password"]
         user = dbHandler.retrieveUsers(username, password)
+
         if user:
             print('hi liam')
             session['username'] = username
@@ -73,6 +75,7 @@ def home():
             qrcode.make(uri).save("static/newCode.png")
             return render_template("/2fa.html")
         else:
+            flash('Invalid username or password!', 'error')
             return render_template("/index.html")
     else:
         return render_template("/index.html")

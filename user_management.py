@@ -2,6 +2,7 @@ import sqlite3 as sql
 import time
 import random
 import pyotp
+import bcrypt
 
 
 def insertUser(username, password, DoB):
@@ -12,10 +13,12 @@ def insertUser(username, password, DoB):
     cur = con.cursor()
     key = pyotp.random_base32()  # Generate the 2FA key
 
+    hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
     # Use double quotes for "2FA_Key" due to special characters
     cur.execute(
         'INSERT INTO users (username, password, dateOfBirth, "two_factor_key") VALUES (?, ?, ?, ?)',
-        (username, password, DoB, key),
+        (username, hashed_password, DoB, key),
     )
     con.commit()
     con.close()
@@ -30,21 +33,21 @@ def retrieveUsers(username, password, otp=None):
     cur = con.cursor()
 
     # Fetch user by username and password
-    cur.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password))
+    cur.execute("SELECT * FROM users WHERE username = ?", (username,))
     user = cur.fetchone()
 
     if user is None:  # Username or password mismatch
         con.close()
         return False, None
-    else:
-        cur.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password))
-        user = cur.fetchone()
-        if user is None:
-            con.close()
-            return False
-        else:
-            con.close()
-            return user
+
+    stored_hashed_password = user[2]
+
+    if not bcrypt.checkpw(password.encode("utf-8"), stored_hashed_password.encode("utf-8")):
+        con.close()
+        return False, None
+
+    con.close()
+    return user
 
 
 
