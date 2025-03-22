@@ -10,16 +10,17 @@ import user_management as dbHandler
 import qrcode
 from flask import flash
 import logging
-<<<<<<< HEAD
+
 import bcrypt
-=======
+
 from flask_wtf.csrf import CSRFProtect
->>>>>>> b5030818747738a64c7e8be31a1b18298b04d9c5
+
 
 app = Flask(__name__)
 app.secret_key='aaabbbddss'
 app.config["SESSION_PERMAMENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
+app.config["SESSION_FILE_DIR"] = "./flask_session_cache"
 Session(app)
 csrf = CSRFProtect(app)
 
@@ -71,11 +72,9 @@ def home():
         user = dbHandler.retrieveUsers(username, password)
 
         if user:
-            print('hi liam')
             session['username'] = username
             session['two_factor_key'] = user[4]
             key = session.get('two_factor_key')
-            print('hello')
             uri = pyotp.totp.TOTP(key).provisioning_uri(name=session.get('username'), issuer_name='2fa App')
             qrcode.make(uri).save("static/newCode.png")
             return render_template("/2fa.html")
@@ -96,7 +95,6 @@ def checkurl(url):
 
 @app.route("/2fa.html", methods=["POST", "GET"])
 def two_factor():
-    print('Hi drew')
     if request.method == "POST":
             code = request.form["code"]
             key = session.get('two_factor_key')
@@ -109,7 +107,6 @@ def two_factor():
                 return render_template("/2fa.html", error="Invalid Code")
     else:
         key = session.get('two_factor_key')
-        print('hello')
         uri = pyotp.totp.TOTP(key).provisioning_uri(name=session.get('username'), issuer_name='2fa App')
         qrcode.make(uri).save("static/newCode.png")
         return render_template("/2fa.html")
