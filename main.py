@@ -27,7 +27,7 @@ csrf = CSRFProtect(app)
 @app.after_request
 def add_security_headers(response):
     response.headers['X-Frame-Options'] = 'DENY'  # Protects against clickjacking
-    response.headers['Content-Security-Policy'] = "nosniff"  # CSP clickjacking protection
+    response.headers['Content-Security-Policy'] = "nosniff; default-src 'self'; script-src 'self'"  # CSP clickjacking protection
     response.headers["X-XSS-Protection"] = "1; mode=block"
     return response
 
